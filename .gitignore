@@ -1,0 +1,34 @@
+# Compiled object files
+*.o
+
+# Precompiled Headers
+*.gch
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Static libraries
+*.a
+
+# Executable files
+*.out
+*.exe
+
+# Debug files
+*.dSYM/
+*.stackdump
+
+# Build directories
+/build/
+bin/
+obj/
+
+# GCC generated dependency files
+*.d
+
+# Core dumps
+core
+
+# Temporary files
+*~
+*.swp

@@ -10,6 +10,58 @@
 #define SERVER_PORT 8080
 #define BACKLOG 10
 
+void process_client_req(int client_fd){
+    client_request_t req;
+    ssize_t bytes_received;
+
+    bytes_received = recv(client_fd, &req, sizeof(client_request_t), 0);
+    if(bytes_received <0){
+        perror("Receive failed.");
+        return;
+    }
+    if(bytes_received ==0){
+        printf("Client disconnected.\n");
+        return;
+    }
+
+    if(bytes_received != sizeof(client_request_t)){
+        fprintf(stderr, "Warning: Incomplete request received.\n");
+        return;
+    }
+
+    printf("Received request ID: %u, Operation: %d\n", req.request_id, req.operation);
+    
+    //Process based on operation type
+    switch(req.operation){
+        case OP_READ:
+            printf("READ operation on path: %s, offset: %zu, length: %zu\n",
+                req.payload.file_op.path,
+                req.payload.file_op.offset,
+                req.payload.file_op.length);
+            //handle_read(client_fd, &req);
+            break;
+
+        case OP_WRITE:
+            printf("WRITE operation on path: %s, offset: %zu, length: %zu\n",
+                req.payload.file_op.path,
+                req.payload.file_op.offset,
+                req.payload.file_op.length);
+            //handle_write(client_fd, &req);
+            break;
+        
+        case OP_LIST:
+            printf("LIST operation on path: %s\n",
+                req.payload.list_op.path);
+            //handle_list(client_fd, &req);
+            break;
+
+        default:
+            fprintf(stderr, "Unknown operation type: %d\n", req.operation);
+            //send_error_response(client_fd, req.request_id, STATUS_ERROR_UNKNOWN_OP);
+            break;
+    }
+}
+
 int main(){
     int listen_fd, client_fd;
     //create listening socket

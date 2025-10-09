@@ -28,4 +28,20 @@ typedef struct {
     } payload;
 } client_request_t;
 
+//Server Response types
+typedef enum{
+    STATUS_OK,
+    STATUS_ERROR_NOT_FOUND,
+    STATUS_ERROR_ACCESS,
+    STATUS_ERROR_UNKNOWN_OP
+} response_status_t;
+
+//server response structure
+typedef struct{
+    uint32_t request_id; //matches client request ID
+    response_status_t status; //response status
+    size_t data_length; //length of valid data in 'data' field
+    char data[MAX_DATA]; //data payload (file data or directory listing)
+} server_response_t;
+
 #endif // PROTOCOL_H
