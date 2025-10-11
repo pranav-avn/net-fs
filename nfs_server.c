@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "protocol.h"
 
 #define SERVER_PORT 8080
@@ -15,9 +17,54 @@ void send_error_response(int client_fd, uint32_t request_id, int error_code){
     printf("Sending error response for request ID %u with error code %d\n", request_id, error_code);
 }
 
-void handle_read(int client_fd, client_request_t *req){
-    //Placeholder for read operation handling
-    printf("Handling READ request (not implemented)\n");
+void handle_read(int client_fd, const client_request_t *req){
+    server_response_t response;
+    int file_fd;
+    ssize_t bytes_read;
+    size_t to_read = req->payload.file_op.length;
+
+    if(to_read > MAX_DATA){
+        to_read = MAX_DATA; //limit to MAX_DATA
+    }
+
+    memset(&response, 0, sizeof(response));
+    response.request_id = req->request_id;
+
+    file_fd = open(req->payload.file_op.path, O_RDONLY);
+    if(file_fd < 0){
+        perror("File open failed");
+        if (errno == ENOENT) {
+            send_error_response(client_fd, req->request_id, STATUS_ERROR_NOT_FOUND);
+        } else if (errno == EACCES) {
+            send_error_response(client_fd, req->request_id, STATUS_ERROR_ACCESS);
+        } else {
+            // Generic error
+            send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP); 
+        }
+        return;
+    }
+    if (lseek(file_fd, req->payload.file_op.offset, SEEK_SET) < 0) {
+        perror("Error seeking file");
+        close(file_fd);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+
+    bytes_read = read(file_fd, response.data, to_read);
+    if(bytes_read < 0){
+        perror("File read failed");
+        close(file_fd);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+    close(file_fd);
+    response.status = STATUS_OK;
+    response.data_length = bytes_read;
+
+    if (send(client_fd, &response, sizeof(server_response_t), 0) < 0) {
+        perror("Error sending READ response");
+    }
+
 }
 
 void handle_write(int client_fd, client_request_t *req){
