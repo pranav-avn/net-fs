@@ -10,6 +10,26 @@
 #define SERVER_PORT 8080
 #define BACKLOG 10
 
+void send_error_response(int client_fd, uint32_t request_id, int error_code){
+    //Placeholder for sending error response
+    printf("Sending error response for request ID %u with error code %d\n", request_id, error_code);
+}
+
+void handle_read(int client_fd, client_request_t *req){
+    //Placeholder for read operation handling
+    printf("Handling READ request (not implemented)\n");
+}
+
+void handle_write(int client_fd, client_request_t *req){
+    //Placeholder for write operation handling
+    printf("Handling WRITE request (not implemented)\n");
+}
+
+void handle_list(int client_fd, client_request_t *req){
+    //Placeholder for list operation handling
+    printf("Handling LIST request (not implemented)\n");
+}
+
 void process_client_req(int client_fd){
     client_request_t req;
     ssize_t bytes_received;
@@ -38,7 +58,7 @@ void process_client_req(int client_fd){
                 req.payload.file_op.path,
                 req.payload.file_op.offset,
                 req.payload.file_op.length);
-            //handle_read(client_fd, &req);
+            handle_read(client_fd, &req);
             break;
 
         case OP_WRITE:
@@ -46,18 +66,18 @@ void process_client_req(int client_fd){
                 req.payload.file_op.path,
                 req.payload.file_op.offset,
                 req.payload.file_op.length);
-            //handle_write(client_fd, &req);
+            handle_write(client_fd, &req);
             break;
         
         case OP_LIST:
             printf("LIST operation on path: %s\n",
                 req.payload.list_op.path);
-            //handle_list(client_fd, &req);
+            handle_list(client_fd, &req);
             break;
 
         default:
             fprintf(stderr, "Unknown operation type: %d\n", req.operation);
-            //send_error_response(client_fd, req.request_id, STATUS_ERROR_UNKNOWN_OP);
+            send_error_response(client_fd, req.request_id, STATUS_ERROR_UNKNOWN_OP);
             break;
     }
 }
