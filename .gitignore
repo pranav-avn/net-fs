@@ -32,3 +32,5 @@ core
 # Temporary files
 *~
 *.swp
+
+*.txt

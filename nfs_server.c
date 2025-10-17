@@ -32,6 +32,7 @@ void handle_read(int client_fd, const client_request_t *req){
     memset(&response, 0, sizeof(response));
     response.request_id = req->request_id;
 
+    printf("Server READ: Attempting to open file: %s\n", req->payload.file_op.path);
     file_fd = open(req->payload.file_op.path, O_RDONLY);
     if(file_fd < 0){
         perror("File open failed");
@@ -62,6 +63,8 @@ void handle_read(int client_fd, const client_request_t *req){
     close(file_fd);
     response.status = STATUS_OK;
     response.data_length = bytes_read;
+
+    printf("Server READ: Sending OK response with %zu bytes.\n", bytes_read);
 
     if (send(client_fd, &response, sizeof(server_response_t), 0) < 0) {
         perror("Error sending READ response");
@@ -140,6 +143,7 @@ void process_client_req(int client_fd){
     ssize_t bytes_received;
 
     bytes_received = recv(client_fd, &req, sizeof(client_request_t), 0);
+    printf("Received request ID: %u, Operation: %d\n", req.request_id, req.operation);
     if(bytes_received <0){
         perror("Receive failed.");
         return;
@@ -153,8 +157,6 @@ void process_client_req(int client_fd){
         fprintf(stderr, "Warning: Incomplete request received.\n");
         return;
     }
-
-    printf("Received request ID: %u, Operation: %d\n", req.request_id, req.operation);
     
     //Process based on operation type
     switch(req.operation){
@@ -238,12 +240,12 @@ int main(){
             continue; //continue to accept next connection
         }
         printf("Client connected. Client FD: %d\n", client_fd);
-        
-        
-        //Handle client requests
+                
+        printf("Server: Beginning request processing...\n"); 
 
+        process_client_req(client_fd); 
 
-
+        printf("Server: Request processing finished.\n"); 
         close(client_fd); //close client connection after handling
         printf("Client disconnected\n");
 
