@@ -12,6 +12,8 @@
 #define SERVER_PORT 8080
 #define BACKLOG 10
 
+#define WRITE_BUFFER_SIZE MAX_DATA
+
 void send_error_response(int client_fd, uint32_t request_id, int error_code){
     //Placeholder for sending error response
     printf("Sending error response for request ID %u with error code %d\n", request_id, error_code);
@@ -68,8 +70,64 @@ void handle_read(int client_fd, const client_request_t *req){
 }
 
 void handle_write(int client_fd, client_request_t *req){
-    //Placeholder for write operation handling
-    printf("Handling WRITE request (not implemented)\n");
+    server_response_t response;
+    int file_fd;
+    ssize_t bytes_to_write = (ssize_t)req->payload.file_op.length;
+    ssize_t bytes_received = 0;
+    size_t bytes_written = 0;
+
+    if(bytes_to_write <= 0 || bytes_to_write > WRITE_BUFFER_SIZE){
+        fprintf(stderr, "Invalid write length: %zd\n", bytes_to_write);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+    
+    char write_buffer[WRITE_BUFFER_SIZE];
+    //Receive data to write
+    memset(&response, 0, sizeof(response));
+    response.request_id = req->request_id;
+
+    file_fd = open(req->payload.file_op.path, O_WRONLY | O_CREAT, 0644);
+    if(file_fd < 0){
+        perror("File open for write failed");
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_ACCESS);
+        return;
+    }
+
+    if(lseek(file_fd, req->payload.file_op.offset, SEEK_SET) < 0) {
+        perror("Error seeking file for write");
+        close(file_fd);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+
+    bytes_received = recv(client_fd, write_buffer, bytes_to_write, 0);
+    if(bytes_received < 0){
+        perror("Receive write data failed");
+        close(file_fd);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+    if(bytes_received != bytes_to_write){
+        fprintf(stderr, "Incomplete write data received. Expected: %zd, Received: %zd\n", bytes_to_write, bytes_received);
+        close(file_fd);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+
+    bytes_written = write(file_fd, write_buffer, bytes_received);
+    if(bytes_written < 0 || bytes_written != bytes_received){
+        perror("File write failed");
+        close(file_fd);
+        send_error_response(client_fd, req->request_id, STATUS_ERROR_UNKNOWN_OP);
+        return;
+    }
+    close(file_fd);
+    response.status = STATUS_OK;
+    response.data_length = bytes_written;
+    if (send(client_fd, &response, sizeof(server_response_t), 0) < 0) {
+        perror("Error sending WRITE response");
+    }
 }
 
 void handle_list(int client_fd, client_request_t *req){
