@@ -104,7 +104,9 @@ void handle_write(int client_fd, client_request_t *req){
         return;
     }
 
+    printf("Server WRITE: Receiving %zd bytes to write to file: %s\n", bytes_to_write, req->payload.file_op.path);
     bytes_received = recv(client_fd, write_buffer, bytes_to_write, 0);
+    printf("Server WRITE: recv returned %zd bytes.\n", bytes_received);
     if(bytes_received < 0){
         perror("Receive write data failed");
         close(file_fd);
@@ -142,50 +144,52 @@ void process_client_req(int client_fd){
     client_request_t req;
     ssize_t bytes_received;
 
-    bytes_received = recv(client_fd, &req, sizeof(client_request_t), 0);
-    printf("Received request ID: %u, Operation: %d\n", req.request_id, req.operation);
-    if(bytes_received <0){
-        perror("Receive failed.");
-        return;
-    }
-    if(bytes_received ==0){
-        printf("Client disconnected.\n");
-        return;
-    }
+    while(1){
+        bytes_received = recv(client_fd, &req, sizeof(client_request_t), 0);
+        printf("Received request ID: %u, Operation: %d\n", req.request_id, req.operation);
+        if(bytes_received <0){
+            perror("Receive failed.");
+            return;
+        }
+        if(bytes_received ==0){
+            printf("Client closed connection cleanly.\n");
+            return;
+        }
 
-    if(bytes_received != sizeof(client_request_t)){
-        fprintf(stderr, "Warning: Incomplete request received.\n");
-        return;
-    }
-    
-    //Process based on operation type
-    switch(req.operation){
-        case OP_READ:
-            printf("READ operation on path: %s, offset: %zu, length: %zu\n",
-                req.payload.file_op.path,
-                req.payload.file_op.offset,
-                req.payload.file_op.length);
-            handle_read(client_fd, &req);
-            break;
-
-        case OP_WRITE:
-            printf("WRITE operation on path: %s, offset: %zu, length: %zu\n",
-                req.payload.file_op.path,
-                req.payload.file_op.offset,
-                req.payload.file_op.length);
-            handle_write(client_fd, &req);
-            break;
+        if(bytes_received != sizeof(client_request_t)){
+            fprintf(stderr, "Warning: Incomplete request received.\n");
+            return;
+        }
         
-        case OP_LIST:
-            printf("LIST operation on path: %s\n",
-                req.payload.list_op.path);
-            handle_list(client_fd, &req);
-            break;
+        //Process based on operation type
+        switch(req.operation){
+            case OP_READ:
+                printf("READ operation on path: %s, offset: %zu, length: %zu\n",
+                    req.payload.file_op.path,
+                    req.payload.file_op.offset,
+                    req.payload.file_op.length);
+                handle_read(client_fd, &req);
+                break;
 
-        default:
-            fprintf(stderr, "Unknown operation type: %d\n", req.operation);
-            send_error_response(client_fd, req.request_id, STATUS_ERROR_UNKNOWN_OP);
-            break;
+            case OP_WRITE:
+                printf("WRITE operation on path: %s, offset: %zu, length: %zu\n",
+                    req.payload.file_op.path,
+                    req.payload.file_op.offset,
+                    req.payload.file_op.length);
+                handle_write(client_fd, &req);
+                break;
+            
+            case OP_LIST:
+                printf("LIST operation on path: %s\n",
+                    req.payload.list_op.path);
+                handle_list(client_fd, &req);
+                break;
+
+            default:
+                fprintf(stderr, "Unknown operation type: %d\n", req.operation);
+                send_error_response(client_fd, req.request_id, STATUS_ERROR_UNKNOWN_OP);
+                break;
+        }
     }
 }
 
@@ -244,11 +248,10 @@ int main(){
         printf("Server: Beginning request processing...\n"); 
 
         process_client_req(client_fd); 
-
         printf("Server: Request processing finished.\n"); 
+
         close(client_fd); //close client connection after handling
         printf("Client disconnected\n");
-
     }
 
 

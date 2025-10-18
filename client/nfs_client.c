@@ -143,11 +143,8 @@ int main(){
     printf("Connected to server %s:%d\n", SERVER_IP, SERVER_PORT);
     test_read(client_fd);
     
-    // Second, test writing new content to a file on the server
-    //test_write(client_fd);
+    test_write(client_fd);
     
-    // 3. Clean up
-    // Step 6: Close the connection
     printf("\nClient: All tests complete. Closing connection.\n");
     close(client_fd); 
     return 0;
